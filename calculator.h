@@ -23,7 +23,7 @@ extern uint8_t ERR_FLAG;
 }
 
 
-#define int32_limit(num) (num > LONG_MAX || num < LONG_MIN)
+#define int32_limit(num) (num >= LONG_MAX || num <= LONG_MIN)
 
 
 int64_t eval(char* rawStr);
