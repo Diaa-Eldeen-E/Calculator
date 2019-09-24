@@ -20,19 +20,19 @@ void main(){
 
 	while (1) {
 
-	char* rawStr = keypad_get_string();
+		char* rawStr = keypad_get_string();
 
-	int64_t result = eval(rawStr);
+		int64_t result = eval_ints(rawStr);
 
 
-	if (int32_limit(result)) { ERROR_print("overflow error"); }
+		if (int32_limit(result)) { ERROR_print("overflow error"); }
 
-	LCD_Command(returnHome);
+		LCD_Command(returnHome);
 
-	if (ERR_FLAG == 1) ERR_FLAG = 0;
-	else LCD_Print_int_X_Y(result, 1, 2);
+		if (ERR_FLAG == 1) ERR_FLAG = 0;
+		else LCD_Print_int_X_Y(result, 1, 2);
 
-	while(keypad_scan() != '#'); //w8 until we press =
+		while(keypad_scan() != '#'); //w8 until we press =
 	}
 
 }

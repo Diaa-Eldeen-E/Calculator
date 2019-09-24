@@ -14,7 +14,7 @@ uint8_t ERR_FLAG = 0;
 
 
 
-int64_t eval(char* rawStr){
+int64_t eval_ints(char* rawStr){
 	int32_t numArr[20];
 	char signArr[20];
 

@@ -26,7 +26,7 @@ extern uint8_t ERR_FLAG;
 #define int32_limit(num) (num >= LONG_MAX || num <= LONG_MIN)
 
 
-int64_t eval(char* rawStr);
+int64_t eval_ints(char* rawStr);
 int8_t parse_ints(char* rawStr, int32_t* numArr, char* signArr);
 int32_t calculate_ints(int32_t* numArr, char* signArr);
 void removeSpaces(char *str);
