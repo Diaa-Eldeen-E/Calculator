@@ -35,13 +35,16 @@ int32_t calculate_ints(int32_t* numArr, char* signArr) {
 			//check for over flow
 			test = (long long) numArr[i] * numArr[i+1];
 			if (int32_limit(test)) {ERROR_print("overflow error"); return -1;}
+			//
 			numArr[i+1] *= numArr[i];
 		}
 		else if (signArr[i] == '/') {
+			//check for divide by 0
+			if (numArr[i+1] == 0) {ERROR_print("divide by 0 error"); return -1;}
 			//check for over flow
 			test = (long long) numArr[i] / numArr[i+1];
-			if (numArr[i+1] == 0) {ERROR_print("divide by 0 error"); return -1;}
 			if (int32_limit(test)) {ERROR_print("overflow error"); return -1;}
+			//
 			numArr[i+1] = numArr[i] / numArr[i+1];
 		}
 	}
