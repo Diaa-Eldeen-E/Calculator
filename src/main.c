@@ -8,7 +8,7 @@
 #include "calculator.h"
 
 
-
+uint32_t F_SysClk = 80000000;
 
 
 
