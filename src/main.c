@@ -12,7 +12,7 @@ uint32_t F_SysClk = 80000000;
 
 
 
-void main(){
+int main(){
 
 	LCD_Initialize();
 	buttons_EK_setup();
@@ -35,17 +35,22 @@ void main(){
 		while(keypad_scan() != '#'); //w8 until we press =
 	}
 
+	return 0;
 }
 
 
-void GPIOJ_handler()
-{
-	char interruptStatus = GPIO_button->RIS;
-	if (interruptStatus == P0){
+// LCD display control buttons
+void GPIOJ_handler() {
+
+	uint32_t interruptStatus = GPIO_button->RIS;
+
+	if (interruptStatus == P0){		// First button
+
 		GPIO_button->ICR |= P0;
 		LCD_Command(shiftDisplayLeft);
 	}
-	else if (interruptStatus == P1){
+	else if (interruptStatus == P1){	// Second button
+
 		GPIO_button->ICR |= P1;
 		LCD_Command(shiftDisplayRight);
 	}
@@ -55,7 +60,3 @@ void GPIOJ_handler()
 
 
 
-void SystemInit(void)
-{
-	SCB->CPACR |= 0x00F00000;
-}
