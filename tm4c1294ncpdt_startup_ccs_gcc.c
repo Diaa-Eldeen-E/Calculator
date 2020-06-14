@@ -1,6 +1,6 @@
 //*****************************************************************************
 //
-// Startup code for use with TI's Code Composer Studio.
+// Startup code for use with TI's Code Composer Studio and GNU tools.
 //
 // Copyright (c) 2011-2014 Texas Instruments Incorporated.  All rights reserved.
 // Software License Agreement
@@ -23,6 +23,7 @@
 //*****************************************************************************
 
 #include <stdint.h>
+#include "TM4C1294NCPDT.h"
 
 //*****************************************************************************
 //
@@ -34,21 +35,44 @@ static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
 
-void GPIOJ_handler();
-//*****************************************************************************
-//
-// External declaration for the reset handler that is to be called when the
-// processor is started
-//
-//*****************************************************************************
-extern void _c_int00(void);
+extern void SysTick_Handler();
+extern void PendSV_Handler();
+extern void SVC_Handler();
+extern void TIMER6_Handler();
+
+#ifndef HWREG
+#define HWREG(x) (*((volatile uint32_t *)(x)))
+#endif
+
+
+
+typedef struct __attribute__((packed)) ContextStateFrame {
+
+	uint32_t non;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r12;
+	uint32_t lr;
+	uint32_t return_address;
+	uint32_t xpsr;
+} sContextStateFrame;
+
 
 //*****************************************************************************
 //
-// Linker variable that marks the top of the stack.
+// The entry point for the application.
 //
 //*****************************************************************************
-extern uint32_t __STACK_TOP;
+extern int main(void);
+
+//*****************************************************************************
+//
+// Reserve space for the system stack.
+//
+//*****************************************************************************
+static uint32_t pui32Stack[512];
 
 //*****************************************************************************
 //
@@ -64,10 +88,10 @@ extern uint32_t __STACK_TOP;
 // the program if located at a start address other than 0.
 //
 //*****************************************************************************
-#pragma DATA_SECTION(g_pfnVectors, ".intvecs")
+__attribute__ ((section(".intvecs")))
 void (* const g_pfnVectors[])(void) =
 {
-    (void (*)(void))((uint32_t)&__STACK_TOP),
+    (void (*)(void))((uint32_t)pui32Stack + sizeof(pui32Stack)),
                                             // The initial stack pointer
     ResetISR,                               // The reset handler
     NmiSR,                                  // The NMI handler
@@ -79,11 +103,11 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     0,                                      // Reserved
-    IntDefaultHandler,                      // SVCall handler
+	SVC_Handler,                      // SVCall handler
     IntDefaultHandler,                      // Debug monitor handler
     0,                                      // Reserved
-    IntDefaultHandler,                      // The PendSV handler
-    IntDefaultHandler,                      // The SysTick handler
+	PendSV_Handler,                      // The PendSV handler
+	SysTick_Handler,                      // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
@@ -135,7 +159,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC1 Sequence 2
     IntDefaultHandler,                      // ADC1 Sequence 3
     IntDefaultHandler,                      // External Bus Interface 0
-	GPIOJ_handler,                      // GPIO Port J
+    IntDefaultHandler,                      // GPIO Port J
     IntDefaultHandler,                      // GPIO Port K
     IntDefaultHandler,                      // GPIO Port L
     IntDefaultHandler,                      // SSI2 Rx and Tx
@@ -182,7 +206,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // AES 0
     IntDefaultHandler,                      // DES3DES 0
     IntDefaultHandler,                      // LCD Controller 0
-    IntDefaultHandler,                      // Timer 6 subtimer A
+	TIMER6_Handler,                      // Timer 6 subtimer A
     IntDefaultHandler,                      // Timer 6 subtimer B
     IntDefaultHandler,                      // Timer 7 subtimer A
     IntDefaultHandler,                      // Timer 7 subtimer B
@@ -202,6 +226,19 @@ void (* const g_pfnVectors[])(void) =
 
 //*****************************************************************************
 //
+// The following are constructs created by the linker, indicating where the
+// the "data" and "bss" segments reside in memory.  The initializers for the
+// for the "data" segment resides immediately following the "text" segment.
+//
+//*****************************************************************************
+extern uint32_t __data_load__;
+extern uint32_t __data_start__;
+extern uint32_t __data_end__;
+extern uint32_t __bss_start__;
+extern uint32_t __bss_end__;
+
+//*****************************************************************************
+//
 // This is the code that gets called when the processor first starts execution
 // following a reset event.  Only the absolutely necessary set is performed,
 // after which the application supplied entry() routine is called.  Any fancy
@@ -213,12 +250,46 @@ void (* const g_pfnVectors[])(void) =
 void
 ResetISR(void)
 {
+    uint32_t *pui32Src, *pui32Dest;
+
     //
-    // Jump to the CCS C initialization routine.  This will enable the
-    // floating-point unit as well, so that does not need to be done here.
+    // Copy the data segment initializers from flash to SRAM.
     //
-    __asm("    .global _c_int00\n"
-          "    b.w     _c_int00");
+    pui32Src = &__data_load__;
+    for(pui32Dest = &__data_start__; pui32Dest < &__data_end__; )
+    {
+        *pui32Dest++ = *pui32Src++;
+    }
+
+    //
+    // Zero fill the bss segment.
+    //
+    __asm("    ldr     r0, =__bss_start__\n"
+          "    ldr     r1, =__bss_end__\n"
+          "    mov     r2, #0\n"
+          "    .thumb_func\n"
+          "zero_loop:\n"
+          "        cmp     r0, r1\n"
+          "        it      lt\n"
+          "        strlt   r2, [r0], #4\n"
+          "        blt     zero_loop");
+
+    //
+    // Enable the floating-point unit.  This must be done here to handle the
+    // case where main() uses floating-point and the function prologue saves
+    // floating-point registers (which will fault if floating-point is not
+    // enabled).  Any configuration of the floating-point unit using DriverLib
+    // APIs must be done here prior to the floating-point unit being enabled.
+    //
+    // Note that this does not use DriverLib since it might not be included in
+    // this project.
+    //
+    HWREG(0xE000ED88) = ((HWREG(0xE000ED88) & ~0x00F00000) | 0x00F00000);
+    
+    //
+    // Call the application's entry point.
+    //
+    main();
 }
 
 //*****************************************************************************
@@ -242,31 +313,69 @@ NmiSR(void)
 //*****************************************************************************
 //
 // This is the code that gets called when the processor receives a fault
-// interrupt.  This simply enters an infinite loop, preserving the system state
-// for examination by a debugger.
+// interrupt.  FaultISR passes the current stack pointer to myFaultISR
+// which contains the system state before the fault.
+// The examination is done by a debugger.
 //
 //*****************************************************************************
-static void
-FaultISR(void)
-{
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
+static void myFaultISR(sContextStateFrame* frame) {
+
+	// Debug steps
+	// First Read the fault register and determine what kind of error happened
+
+	//read the fault register
+	uint32_t ui32FaultNum = SCB->CFSR;
+
+
+	// if imprecise
+	if(ui32FaultNum & BIT10) {
+		__BKPT();
+		while(1);	// Enter an infinite loop.
+
+		// Insert this to make it precise (Must be inserted before the code that caused the problem)
+//		SCnSCB->ACTLR |= BIT1;	//Disable write buffer to make the imprecise faults precise
+
+	}
+
+	/* Note that if there is no fault, that could mean that an SVCall
+	 * occurred when the interrupts are disabled
+	 */
+	__BKPT();
+	while(1);	// Enter an infinite loop.
 }
+
+
+static void FaultISR(void) {
+
+	__asm(
+			"tst lr, #4 \n"		\
+			"ite eq \n"			\
+			"mrseq r0, msp \n"	\
+			"mrsne r0, psp \n"	\
+			"b myFaultISR \n"	\
+			);
+
+	// This should never be reached
+	myFaultISR((void*) 0);	// Just to remove unused function warning
+	while(1);	// Enter an infinite loop.
+}
+
+
 
 //*****************************************************************************
 //
 // This is the code that gets called when the processor receives an unexpected
-// interrupt.  This simply enters an infinite loop, preserving the system state
-// for examination by a debugger.
+// interrupt.  This simply stores the ISR number in a variable and then enters
+// an infinite loop, preserving the system state for examination by a debugger.
 //
 //*****************************************************************************
-static void
-IntDefaultHandler(void)
-{
+static void IntDefaultHandler(void) {
+
+	uint8_t ui8ISRNum = SCB->ICSR;	// This holds which interrupt has occurred
+
+	ui8ISRNum *= 1;	//Just for removing the warning
+
+	__BKPT();
     //
     // Go into an infinite loop.
     //
