@@ -40,7 +40,8 @@ void UI_UART() {
 
 		int64_t result = eval_ints(rawStr);
 
-		if (int32_limit(result)) { ERROR_print("overflow error"); }
+//		if (int32_limit(result))
+//			ERROR_print("overflow error");
 
 		if (ERR_FLAG == 1)
 			ERR_FLAG = 0;
@@ -64,13 +65,15 @@ void UI_LCD() {
 
 		int64_t result = eval_ints(rawStr);
 
-
-		if (int32_limit(result)) { ERROR_print("overflow error"); }
+		if (int32_limit(result))
+			ERROR_print("overflow error");
 
 		LCD_Command(returnHome);
 
-		if (ERR_FLAG == 1) ERR_FLAG = 0;
-		else LCD_Print_int_X_Y(result, 1, 2);
+		if (ERR_FLAG == 1)
+			ERR_FLAG = 0;
+		else
+			LCD_Print_int_X_Y(result, 1, 2);
 
 		while(keypad_scan() != '#'); //w8 until we press =
 	}
@@ -94,23 +97,32 @@ char* keypad_get_string(){
 			 pStringSize *=2;
 			pString = realloc(pString, pStringSize);
 		}
+
 		keyPressed=keypad_scan();
 
 		if (keyPressed =='#'){
 			pString[i] = '\0';
 			break;
 		}
-		else if (keyPressed =='A') keyPressed = '/';
-		else if (keyPressed =='B') keyPressed = '*';
-		else if (keyPressed =='C') keyPressed = '+';
-		else if (keyPressed =='D') keyPressed = '-';
+		else if (keyPressed =='A')
+			keyPressed = '/';
+		else if (keyPressed =='B')
+			keyPressed = '*';
+		else if (keyPressed =='C')
+			keyPressed = '+';
+		else if (keyPressed =='D')
+			keyPressed = '-';
+
 		else if (keyPressed =='*') {
 			free (pString);
 			return keypad_get_string();
 		}
 
 		LCD_Print_Char_X_Y(keyPressed, i+1, 1);
-		if (i>10) LCD_Command(shiftDisplayLeft);
+
+		if (i>10)
+			LCD_Command(shiftDisplayLeft);
+
 		pString[i] = keyPressed;
 	}
 
