@@ -37,6 +37,7 @@ set(SOURCES
 	src/handy.c
 	src/main.c
 	src/calculator.c
+	src/UI.c
 	tm4c1294ncpdt_startup_ccs_gcc.c
 	)
 	
