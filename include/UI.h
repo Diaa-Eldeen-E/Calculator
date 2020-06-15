@@ -11,8 +11,11 @@
 
 #include "limits.h"
 
-#include "LCD.h"
 #include "calculator.h"
+
+#include "LCD.h"
+#include "UART.h"
+
 
 
 extern uint8_t ERR_FLAG;

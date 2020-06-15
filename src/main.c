@@ -15,10 +15,10 @@ uint32_t F_SysClk = 80000000;
 
 int main(){
 
+	clock_setup_MOSC(F_SysClk/1000000UL);
 
-
-	UI_LCD();	// LCD calculator user interface
-//	UI_UART();	// UART calculator user interface
+//	UI_LCD();	// LCD calculator user interface
+	UI_UART();	// UART calculator user interface
 
 
 	return 0;

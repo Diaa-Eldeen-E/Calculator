@@ -9,12 +9,45 @@
 #include "UI.h"
 
 
-
+#ifdef	LCD		// LCD interface
 void ERROR_print(char* str) {
 
 	LCD_clear;
 	LCD_Print_String_X_Y(str, 1, 1);
 	ERR_FLAG = 1;
+}
+
+#else	// This is the default (UART interface)
+void ERROR_print(char* str) {
+
+	UART_send_stringL(str);
+	ERR_FLAG = 1;
+}
+#endif
+
+
+void UI_UART() {
+
+
+	UART_initialize_polling();
+	UART_send_stringL("UART initialized successfully");
+
+	while (1) {
+
+		UART_send_stringL("\r\nEnter the operation:");
+
+		char* rawStr = UART_receive_line();
+
+		int64_t result = eval_ints(rawStr);
+
+		if (int32_limit(result)) { ERROR_print("overflow error"); }
+
+		if (ERR_FLAG == 1)
+			ERR_FLAG = 0;
+		else
+			UART_send_intL(result);
+
+	}
 }
 
 
