@@ -9,8 +9,6 @@
 
 
 
-extern uint8_t ERR_FLAG;
-uint8_t ERR_FLAG = 0;
 
 
 // A wrapper function for performing the calculations

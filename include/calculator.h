@@ -13,12 +13,8 @@
 
 #include "handy.h"
 
-extern uint8_t ERR_FLAG;
-
 
 #define IS_DIGIT(num)	((num) >= '0' && (num) <= '9')
-
-
 #define int32_limit(num) (num >= LONG_MAX || num <= LONG_MIN)
 
 

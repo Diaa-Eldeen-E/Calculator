@@ -9,6 +9,9 @@
 #include "UI.h"
 
 
+uint8_t ERR_FLAG = 0;
+
+
 #ifdef	LCD		// LCD interface
 void ERROR_print(char* str) {
 
@@ -40,13 +43,10 @@ void UI_UART() {
 
 		int64_t result = eval_ints(rawStr);
 
-//		if (int32_limit(result))
-//			ERROR_print("overflow error");
-
-		if (ERR_FLAG == 1)
-			ERR_FLAG = 0;
-		else
+		if (ERR_FLAG == 0)	// Calculation success, No errors
 			UART_send_intL(result);
+		else
+			ERR_FLAG = 0;
 
 	}
 }
@@ -65,15 +65,12 @@ void UI_LCD() {
 
 		int64_t result = eval_ints(rawStr);
 
-		if (int32_limit(result))
-			ERROR_print("overflow error");
-
 		LCD_Command(returnHome);
 
-		if (ERR_FLAG == 1)
-			ERR_FLAG = 0;
-		else
+		if (ERR_FLAG == 0)	// Calculation success, No errors
 			LCD_Print_int_X_Y(result, 1, 2);
+		else
+			ERR_FLAG = 0;
 
 		while(keypad_scan() != '#'); //w8 until we press =
 	}
