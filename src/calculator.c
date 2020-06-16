@@ -36,7 +36,7 @@ int64_t eval_ints(char* rawStr) {
  */
 int32_t calculate_ints(int32_t* numArr, char* signArr) {
 
-	long long result =0, test =0;
+	long long result =0;
 	long results[20];
 
 	uint8_t RI =0, i=0;
@@ -93,8 +93,9 @@ int32_t calculate_ints(int32_t* numArr, char* signArr) {
 
 
 /* This function takes the rawStr for the numerical calculation as input
- * It outputs a numbers array containing all individual numbers in order
- * and the corresponding sign array containing all individual signs (- + * /)
+ * and parses it to numbers and signs.
+ * It outputs a numbers array containing all the numbers separated by a sign
+ * and the corresponding sign array containing the supported signs (- + * /).
  * It performs a lot of error checks and sets the ERR_FLAG bit if an
  * error occurred
  */
@@ -102,31 +103,41 @@ int8_t parse_ints(char* rawStr, int32_t* numArr, char* signArr) {
 
 	removeSpaces(rawStr);
 
-	char* pRemainder;
-	uint8_t NAI =0, SAI =0;
-
-	long ret = strtol(rawStr, &pRemainder, 10);
-
-	if (int32_limit(ret)) {
-		ERROR_print("overflow error");
+	// The string must start with a number
+	if( (!(IS_DIGIT(*rawStr))) && *rawStr != '-') {
+		ERROR_print("Invalid input");
 		return -1;
 	}
 
-	numArr[NAI++] = ret;
+	uint8_t numArrIdx =0, signArrIdx =0;
 
-	while (1) {
+	int32_t iNum;	// The number converted from the string
+	char* pcRemainder;	// The remaining string after converting the number
 
-		while (*pRemainder > '9' || *pRemainder < '0') { // while not a number
+	do	{
 
-			if (*pRemainder == '\0')
-				break;	//stop when the end of the string is reached
+		iNum = strtol(rawStr, &pcRemainder, 10);	// Convert to long
 
-			else if ( *pRemainder == '-') {
+		// Overflow check (strtol returns LONG_MAX in case of overflow)
+		if (int32_limit(iNum)) {
+			ERROR_print("overflow error");
+			return -1;
+		}
 
-				if ( pRemainder[-1] != '*' && pRemainder[-1] != '/' )
-					signArr[SAI++] = '-';
+		numArr[numArrIdx++] = iNum;
 
-				if ( pRemainder[1] > '9' || pRemainder[1] < '0' ) { //if the next is NAN
+		// Put the signs in the sign array
+		while (! (IS_DIGIT(*pcRemainder))) {
+
+			if (*pcRemainder == '\0')
+				break;	//stop if the end of the string is reached
+
+			else if ( *pcRemainder == '-') {
+
+				if ( pcRemainder[-1] != '*' && pcRemainder[-1] != '/' )
+					signArr[signArrIdx++] = '-';
+
+				if ( ! (IS_DIGIT(pcRemainder[1])) ) {
 					ERROR_print("multiple signs error");
 					return -1;
 				}
@@ -134,37 +145,38 @@ int8_t parse_ints(char* rawStr, int32_t* numArr, char* signArr) {
 				break;
 			}
 
-			else if ( *pRemainder == '+' ) {
+			else if ( *pcRemainder == '+' ) {
 
-				if ( pRemainder[1] > '9' || pRemainder[1] < '0' ) { //if the next is NAN
+				if ( ! (IS_DIGIT(pcRemainder[1])) ) { //if the next is NAN
 					ERROR_print("multiple signs error");
 					return -1;
 				}
 
-				signArr[SAI++] = '+';
-				*pRemainder++;
+				signArr[signArrIdx++] = '+';
+				pcRemainder++;
 			}
 
-			else if ( *pRemainder == '*' ) {
+			else if ( *pcRemainder == '*' ) {
 
 				//if the next is NAN nor '-'
-				if ( (pRemainder[1] > '9' || pRemainder[1] < '0') && pRemainder[1] != '-' ) {
+				if ( (! (IS_DIGIT(pcRemainder[1]))) && pcRemainder[1] != '-' ) {
 					ERROR_print("multiple signs error");
 					return -1;
 				}
 
-				signArr[SAI++] = '*';
-				*pRemainder++;
+				signArr[signArrIdx++] = '*';
+				pcRemainder++;
 			}
-			else if ( *pRemainder == '/' ) {
 
-				if ((pRemainder[1] > '9' || pRemainder[1] < '0') && pRemainder[1] != '-'){
+			else if ( *pcRemainder == '/' ) {
+
+				if ((! (IS_DIGIT(pcRemainder[1]))) && pcRemainder[1] != '-'){
 					ERROR_print("multiple signs error"); //if the next is NAN nor '-'
 					return -1;
 				}
 
-				signArr[SAI++] = '/';
-				*pRemainder++;
+				signArr[signArrIdx++] = '/';
+				pcRemainder++;
 			}
 
 			else {
@@ -174,21 +186,14 @@ int8_t parse_ints(char* rawStr, int32_t* numArr, char* signArr) {
 
 		}
 
-		if (*pRemainder == '\0') {
-			signArr[SAI] = '\0';
+		if (*pcRemainder == '\0') {
+			signArr[signArrIdx] = '\0';
 			break;
 		}
 
-		rawStr = pRemainder;
-		ret = strtol(rawStr, &pRemainder, 10);
+		rawStr = pcRemainder;
 
-		if (int32_limit(ret)) {
-			ERROR_print("overflow error");
-			return -1;
-		}
-
-		numArr[NAI++] = ret;
-	}
+	}while(1);
 
 	return 0;	//success
 }
